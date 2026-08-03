@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConnectionCards } from "@/components/connection-cards";
+import { BookOfBusiness } from "@/components/book-of-business";
 
 interface DbUser {
   slackConnected: boolean;
   slackTeamName: string | null;
+  autoMatchedBook: boolean;
 }
 
 export default function SettingsPage() {
@@ -32,7 +34,9 @@ export default function SettingsPage() {
   async function handleDisconnectSlack() {
     const res = await fetch("/api/slack/disconnect", { method: "POST" });
     if (res.ok) {
-      setDbUser((prev) => prev ? { ...prev, slackConnected: false, slackTeamName: null } : null);
+      setDbUser((prev) =>
+        prev ? { ...prev, slackConnected: false, slackTeamName: null } : null
+      );
       router.refresh();
     }
   }
@@ -57,6 +61,13 @@ export default function SettingsPage() {
           showDisconnect
         />
       )}
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-white mb-4">
+          My Book of Business
+        </h2>
+        <BookOfBusiness />
+      </div>
     </div>
   );
 }

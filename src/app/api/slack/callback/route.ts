@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const codeVerifier = request.cookies.get("slack_code_verifier")?.value;
+  if (!codeVerifier) {
+    console.error("Slack callback: missing code_verifier cookie");
+    return NextResponse.redirect(
+      new URL("/setup?slack=error", request.url)
+    );
+  }
+
   const clerkUser = await currentUser();
   if (!clerkUser) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
@@ -26,30 +34,35 @@ export async function GET(request: NextRequest) {
         client_secret: process.env.SLACK_CLIENT_SECRET!,
         code,
         redirect_uri: process.env.SLACK_REDIRECT_URI!,
+        code_verifier: codeVerifier,
       }),
     });
 
     const data = await tokenResponse.json();
 
     if (!data.ok) {
-      console.error("Slack OAuth error:", data.error);
+      console.error("Slack OAuth error:", data.error, JSON.stringify(data));
       return NextResponse.redirect(
         new URL("/setup?slack=error", request.url)
       );
     }
 
+    const userToken = data.authed_user?.access_token ?? data.access_token;
+
     await prisma.user.update({
       where: { clerkId: clerkUser.id },
       data: {
-        slackAccessToken: data.access_token,
+        slackAccessToken: userToken,
         slackTeamName: data.team?.name ?? null,
         slackConnected: true,
       },
     });
 
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL("/setup?slack=success", request.url)
     );
+    response.cookies.delete("slack_code_verifier");
+    return response;
   } catch (err) {
     console.error("Slack callback error:", err);
     return NextResponse.redirect(

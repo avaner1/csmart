@@ -37,7 +37,16 @@ export function SlackMessageCard({
   onToggleSave,
 }: SlackMessageCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmUnsave, setConfirmUnsave] = useState(false);
   const isLong = text.length > 200;
+
+  function handleBookmarkClick() {
+    if (isSaved) {
+      setConfirmUnsave(true);
+    } else {
+      onToggleSave();
+    }
+  }
 
   return (
     <div className="bg-spotify-card rounded-card border border-spotify-border p-4 hover:bg-spotify-border/30 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg hover:shadow-black/20">
@@ -109,7 +118,7 @@ export function SlackMessageCard({
               </span>
             )}
 
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1 ml-auto relative">
               <a
                 href={deepLink}
                 target="_blank"
@@ -120,7 +129,7 @@ export function SlackMessageCard({
                 <ExternalLink size={14} />
               </a>
               <button
-                onClick={onToggleSave}
+                onClick={handleBookmarkClick}
                 className={`p-1.5 rounded-card transition-colors ${
                   isSaved
                     ? "text-spotify-green hover:text-spotify-green/80"
@@ -130,6 +139,31 @@ export function SlackMessageCard({
               >
                 <Bookmark size={14} fill={isSaved ? "currentColor" : "none"} />
               </button>
+
+              {confirmUnsave && (
+                <div className="absolute bottom-full right-0 mb-2 bg-spotify-card border border-spotify-border rounded-card p-3 shadow-xl z-10 w-48">
+                  <p className="text-xs text-spotify-subtext mb-2">
+                    Remove from saved?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        onToggleSave();
+                        setConfirmUnsave(false);
+                      }}
+                      className="text-xs px-2.5 py-1 bg-spotify-error/20 text-spotify-error rounded hover:bg-spotify-error/30 transition-colors"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={() => setConfirmUnsave(false)}
+                      className="text-xs px-2.5 py-1 bg-spotify-border text-spotify-subtext rounded hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

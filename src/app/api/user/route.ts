@@ -26,6 +26,10 @@ export async function GET() {
       slackTeamName: user.slackTeamName,
       googleConnected: user.googleConnected,
       isAdmin: user.isAdmin,
+      vertical: user.vertical,
+      csManager: user.csManager,
+      rhoCs: user.rhoCs,
+      autoMatchedBook: user.autoMatchedBook,
     },
   });
 }

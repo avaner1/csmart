@@ -26,13 +26,20 @@ export default function SetupPage() {
         if (res.ok) {
           const data = await res.json();
           setDbUser(data.user);
+          if (
+            data.user.slackConnected &&
+            localStorage.getItem("csmart_setup_complete")
+          ) {
+            router.replace("/dashboard");
+            return;
+          }
         }
       } finally {
         setLoading(false);
       }
     }
     if (isLoaded) fetchUser();
-  }, [isLoaded, slackStatus]);
+  }, [isLoaded, slackStatus, router]);
 
   if (!isLoaded || loading) {
     return (
@@ -76,7 +83,10 @@ export default function SetupPage() {
 
         <div className="mt-10 flex items-center gap-6">
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => {
+              localStorage.setItem("csmart_setup_complete", "true");
+              router.push("/dashboard");
+            }}
             className="inline-flex items-center gap-2 px-6 py-3 bg-spotify-green hover:bg-spotify-green/90 text-black font-semibold rounded-card transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg hover:shadow-spotify-green/20"
           >
             Get Started
@@ -84,7 +94,10 @@ export default function SetupPage() {
           </button>
           {!dbUser?.slackConnected && (
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => {
+                localStorage.setItem("csmart_setup_complete", "true");
+                router.push("/dashboard");
+              }}
               className="text-sm text-spotify-subtext hover:text-white transition-colors"
             >
               Skip Slack for now

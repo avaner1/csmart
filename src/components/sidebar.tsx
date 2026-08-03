@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -10,6 +10,7 @@ import {
   Newspaper,
   Bookmark,
   Settings,
+  Shield,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -24,8 +25,16 @@ const navItems = [
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const { user } = useUser();
+
+  useEffect(() => {
+    fetch("/api/user")
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(d.user?.isAdmin ?? false))
+      .catch(() => {});
+  }, []);
 
   return (
     <aside
@@ -76,6 +85,29 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-card transition-all duration-200 group mt-2 ${
+              pathname === "/admin"
+                ? "bg-spotify-card text-spotify-green"
+                : "text-spotify-subtext hover:text-white hover:bg-spotify-card/50"
+            }`}
+          >
+            <Shield
+              size={20}
+              className={
+                pathname === "/admin"
+                  ? "text-spotify-green"
+                  : "text-spotify-subtext group-hover:text-white transition-colors"
+              }
+            />
+            {expanded && (
+              <span className="text-sm font-medium">Admin</span>
+            )}
+          </Link>
+        )}
       </nav>
 
       <div className="px-3 pb-5">
