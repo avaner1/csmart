@@ -11,7 +11,6 @@ import {
   EyeOff,
   ExternalLink,
   Bookmark,
-  MessageSquare,
 } from "lucide-react";
 
 interface AppTheme {
