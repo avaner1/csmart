@@ -68,6 +68,10 @@ export default function SettingsPage() {
         </h2>
         <BookOfBusiness />
       </div>
+
+      <p className="text-xs text-spotify-subtext/50 mt-12 text-center">
+        Appearance customized by your team
+      </p>
     </div>
   );
 }

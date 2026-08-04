@@ -38,9 +38,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-spotify-black flex flex-col z-40 transition-all duration-300 ${
-        expanded ? "w-60" : "w-[72px]"
-      }`}
+      style={{ width: expanded ? "var(--sidebar-width)" : "var(--sidebar-collapsed-width)" }}
+      className="fixed left-0 top-0 h-screen bg-spotify-black flex flex-col z-40 transition-all duration-300"
     >
       <div className="h-1 bg-gradient-to-r from-spotify-green/80 to-spotify-green/20" />
 

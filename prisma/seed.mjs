@@ -167,6 +167,17 @@ async function main() {
     const result = await client.query('SELECT COUNT(*) FROM "SalesAlignment"');
     console.log(`Done. ${result.rows[0].count} alignment rows seeded.`);
 
+    // Seed AppTheme (singleton)
+    console.log("Seeding default theme...");
+    const existingTheme = await client.query('SELECT id FROM "AppTheme" LIMIT 1');
+    if (existingTheme.rows.length === 0) {
+      await client.query(`INSERT INTO "AppTheme" (id, "accentColor", "cardBackground", "cardBorder", "sidebarBackground", "pageBackground", "primaryText", "secondaryText", "cardBorderRadius", "cardSpacing", "sidebarWidth", "fontSize", "badgeStyle", "animationsEnabled", "showUrgencyColors", "updatedAt")
+        VALUES (gen_random_uuid(), '#1DB954', '#181818', '#282828', '#000000', '#121212', '#FFFFFF', '#B3B3B3', 8, 'comfortable', 'default', 'medium', 'pill', true, true, NOW())`);
+      console.log("Default theme created.");
+    } else {
+      console.log("Theme already exists, skipping.");
+    }
+
     // Seed AdminItems
     console.log("Seeding admin items...");
     await client.query('DELETE FROM "AdminItem"');

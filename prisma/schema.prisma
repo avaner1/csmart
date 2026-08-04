@@ -82,3 +82,22 @@ model SalesAlignment {
   @@index([csmName])
   @@index([secondCsm])
 }
+
+model AppTheme {
+  id                 String   @id @default(cuid())
+  accentColor        String   @default("#1DB954")
+  cardBackground     String   @default("#181818")
+  cardBorder         String   @default("#282828")
+  sidebarBackground  String   @default("#000000")
+  pageBackground     String   @default("#121212")
+  primaryText        String   @default("#FFFFFF")
+  secondaryText      String   @default("#B3B3B3")
+  cardBorderRadius   Int      @default(8)
+  cardSpacing        String   @default("comfortable")
+  sidebarWidth       String   @default("default")
+  fontSize           String   @default("medium")
+  badgeStyle         String   @default("pill")
+  animationsEnabled  Boolean  @default(true)
+  showUrgencyColors  Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}

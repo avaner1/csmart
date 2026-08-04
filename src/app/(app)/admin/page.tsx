@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ThemeEditor } from "@/components/theme-editor";
 import {
   Trash2,
   Pencil,
   Plus,
   RefreshCw,
   List,
+  Paintbrush,
   UserPlus,
 } from "lucide-react";
 
@@ -79,7 +81,7 @@ function priorityDot(p: string) {
 export default function AdminPage() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<"all" | "add" | "recurring">("all");
+  const [tab, setTab] = useState<"all" | "add" | "recurring" | "appearance">("all");
   const [items, setItems] = useState<AdminItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -220,6 +222,7 @@ export default function AdminPage() {
     { key: "all" as const, label: "All Items", icon: List },
     { key: "add" as const, label: editingId ? "Edit Item" : "Add New", icon: Plus },
     { key: "recurring" as const, label: "Recurring Items", icon: RefreshCw },
+    { key: "appearance" as const, label: "Appearance", icon: Paintbrush },
   ];
 
   return (
@@ -440,6 +443,17 @@ export default function AdminPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Appearance */}
+      {tab === "appearance" && (
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-1">Customize Appearance</h2>
+          <p className="text-xs text-spotify-subtext mb-6">
+            Changes apply to all users across the entire app.
+          </p>
+          <ThemeEditor />
         </div>
       )}
 

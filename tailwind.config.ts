@@ -10,13 +10,13 @@ const config: Config = {
     extend: {
       colors: {
         spotify: {
-          green: "#1DB954",
-          black: "#000000",
-          darkgray: "#121212",
-          card: "#181818",
-          border: "#282828",
-          text: "#FFFFFF",
-          subtext: "#B3B3B3",
+          green: "var(--accent-color)",
+          black: "var(--sidebar-bg)",
+          darkgray: "var(--page-bg)",
+          card: "var(--card-bg)",
+          border: "var(--card-border)",
+          text: "var(--text-primary)",
+          subtext: "var(--text-secondary)",
           error: "#E74C3C",
           warning: "#F39C12",
         },
@@ -25,8 +25,8 @@ const config: Config = {
         sans: ["Inter", "sans-serif"],
       },
       borderRadius: {
-        card: "8px",
-        container: "12px",
+        card: "var(--card-radius)",
+        container: "var(--container-radius)",
       },
     },
   },

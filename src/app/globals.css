@@ -3,16 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --accent-color: #1DB954;
+  --card-bg: #181818;
+  --card-border: #282828;
+  --sidebar-bg: #000000;
+  --page-bg: #121212;
+  --text-primary: #FFFFFF;
+  --text-secondary: #B3B3B3;
+  --card-radius: 8px;
+  --container-radius: 12px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
+  --font-scale: 1;
+  --spacing-scale: 1;
+  --badge-radius: 9999px;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: var(--text-primary);
+  background: var(--page-bg);
+  font-size: calc(14px * var(--font-scale));
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #282828 transparent;
+  scrollbar-color: var(--card-border) transparent;
 }
+
+[data-spacing="compact"] .space-y-2 > * + * { margin-top: 0.25rem; }
+[data-spacing="spacious"] .space-y-2 > * + * { margin-top: 1rem; }
+[data-no-animations] * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
