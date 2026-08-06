@@ -13,6 +13,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { relativeTime } from "@/lib/time";
@@ -82,6 +83,8 @@ export function SavedItemCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [currentTags, setCurrentTags] = useState(tags);
   const [currentNotes, setCurrentNotes] = useState(notes ?? "");
@@ -187,16 +190,37 @@ export function SavedItemCard({
                     >
                       <Archive size={14} /> Archive
                     </button>
-                    {sourceUrl && (
+                    {sourceUrl && !expired && (
                       <a
                         href={sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={() => setMenuOpen(false)}
+                        onClick={(e) => {
+                          setMenuOpen(false);
+                          if (sourceType === "slack") {
+                            e.preventDefault();
+                            window.open(sourceUrl, "_blank");
+                            // We can't detect 404 from Slack redirect, but we provide
+                            // the fallback via the expired state if user reports it
+                          }
+                        }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-spotify-subtext hover:text-white hover:bg-spotify-border/50 transition-colors"
                       >
-                        <ExternalLink size={14} /> Open Original
+                        <ExternalLink size={14} /> Open in Slack
                       </a>
+                    )}
+                    {sourceType === "slack" && !expired && (
+                      <button
+                        onClick={() => {
+                          setExpired(true);
+                          setMenuOpen(false);
+                          setToast("This message has expired in Slack, but your saved copy is still here.");
+                          setTimeout(() => setToast(null), 4000);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-spotify-subtext/60 hover:text-spotify-subtext hover:bg-spotify-border/50 transition-colors"
+                      >
+                        <X size={14} /> Mark as expired in Slack
+                      </button>
                     )}
                     <button
                       onClick={() => { onDelete(id); setMenuOpen(false); }}
@@ -209,6 +233,21 @@ export function SavedItemCard({
               </div>
             </div>
           </div>
+
+          {/* Slack retention note + expired label */}
+          {sourceType === "slack" && (
+            <div className="flex items-center gap-3 mt-2">
+              <span className="inline-flex items-center gap-1 text-xs text-spotify-subtext/60">
+                <ShieldCheck size={11} />
+                Saved to CSMart — content preserved past Slack retention
+              </span>
+              {expired && (
+                <span className="text-xs text-spotify-subtext/50 italic">
+                  Original expired in Slack
+                </span>
+              )}
+            </div>
+          )}
 
           {expanded && (
             <div className="mt-3">
@@ -338,6 +377,14 @@ export function SavedItemCard({
           )}
         </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="mt-2 px-3 py-2 bg-spotify-card border border-spotify-border rounded-card text-xs text-spotify-subtext flex items-center gap-2 animate-[fadeIn_0.2s_ease-in]">
+          <ShieldCheck size={13} className="text-spotify-green flex-shrink-0" />
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -131,6 +131,7 @@ export default function DashboardPage() {
   const [book, setBook] = useState<BookData | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const [urgencyFilter, setUrgencyFilter] = useState("all");
   const [bookExpanded, setBookExpanded] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -139,7 +140,7 @@ export default function DashboardPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [updRes, tlRes, hotRes, msgRes, savedRes, bookRes, userRes] = await Promise.allSettled([
+    const [updRes, tlRes, hotRes, msgRes, savedRes, bookRes, userRes, slackStatusRes] = await Promise.allSettled([
       fetch("/api/slack/my-updates").then((r) => r.json()),
       fetch("/api/timeline").then((r) => r.json()),
       fetch("/api/slack/hot-topics").then((r) => r.json()),
@@ -147,6 +148,7 @@ export default function DashboardPage() {
       fetch("/api/saved?idsOnly=false").then((r) => r.json()),
       fetch("/api/book").then((r) => r.json()),
       fetch("/api/user").then((r) => r.json()),
+      fetch("/api/slack/status").then((r) => r.json()),
     ]);
 
     if (updRes.status === "fulfilled") {
@@ -184,6 +186,7 @@ export default function DashboardPage() {
 
     if (bookRes.status === "fulfilled") setBook(bookRes.value);
     if (userRes.status === "fulfilled") setIsAdmin(userRes.value.user?.isAdmin ?? false);
+    if (slackStatusRes.status === "fulfilled") setNeedsReconnect(slackStatusRes.value.needsReconnect ?? false);
 
     setLoading(false);
   }, []);
@@ -236,6 +239,21 @@ export default function DashboardPage() {
           {hotTopics.length > 0 && <> · {hotTopics.length} hot topics in Slack</>}
         </p>
       </div>
+
+      {/* Slack reconnect banner */}
+      {needsReconnect && (
+        <div className="bg-spotify-warning/10 border border-spotify-warning/20 rounded-card px-4 py-3 mb-4 flex items-center justify-between">
+          <p className="text-sm text-spotify-warning">
+            Slack permissions updated — reconnect to access private channels
+          </p>
+          <a
+            href="/api/slack/connect"
+            className="px-3 py-1.5 bg-spotify-warning text-black text-xs font-semibold rounded-card hover:bg-spotify-warning/90 transition-colors flex-shrink-0"
+          >
+            Reconnect
+          </a>
+        </div>
+      )}
 
       {/* CARD 1 — Updates for Your Book (full width) */}
       <div className="bg-spotify-card rounded-card border border-spotify-border p-5 mb-4 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-black/20 transition-all duration-200">

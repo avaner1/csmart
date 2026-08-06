@@ -34,6 +34,7 @@ export async function GET() {
     "groups:read",
     "im:history",
     "im:read",
+    "search:read",
     "users:read",
     "users:read.email",
     "team:read",
