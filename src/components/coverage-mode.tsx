@@ -25,7 +25,7 @@ export function CoverageMode() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<RosterEntry[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [, setSearching] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {

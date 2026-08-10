@@ -59,7 +59,7 @@ interface HandoffNotesProps {
   compact?: boolean;
 }
 
-export function HandoffNotes({ rosterId, csmName, cpField, compact = false }: HandoffNotesProps) {
+export function HandoffNotes({ rosterId, cpField }: HandoffNotesProps) {
   const [notes, setNotes] = useState<HandoffNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -75,7 +75,7 @@ export function HandoffNotes({ rosterId, csmName, cpField, compact = false }: Ha
     tags: [] as string[],
     dueDate: "",
   });
-  const [tagInput, setTagInput] = useState("");
+  // tag input is managed inline via form.tags
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
