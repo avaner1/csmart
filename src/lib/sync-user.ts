@@ -16,8 +16,10 @@ export async function syncUser() {
 
   if (existing) {
     if (!existing.autoMatchedBook) {
-      await matchBookOfBusiness(existing.id, fullName).catch(() => null);
+      const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+      await matchBookOfBusiness(existing.id, fullName, email).catch(() => null);
     }
+    await prisma.user.update({ where: { id: existing.id }, data: { lastLoginAt: new Date() } });
     return prisma.user.findUnique({ where: { id: existing.id } });
   }
 
@@ -30,7 +32,8 @@ export async function syncUser() {
     },
   });
 
-  await matchBookOfBusiness(user.id, fullName).catch(() => null);
+  const userEmail = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+  await matchBookOfBusiness(user.id, fullName, userEmail).catch(() => null);
 
   return prisma.user.findUnique({ where: { id: user.id } });
 }

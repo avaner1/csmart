@@ -2,22 +2,6 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
-function normalize(name: string): string {
-  return name.toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
-}
-
-function namesMatch(clerkName: string, dbName: string): boolean {
-  const a = normalize(clerkName);
-  const b = normalize(dbName);
-  if (a === b) return true;
-  const aParts = a.split(" ");
-  const bParts = b.split(" ");
-  if (aParts.length >= 2 && bParts.length >= 2) {
-    return aParts[0] === bParts[0] && aParts[aParts.length - 1] === bParts[bParts.length - 1];
-  }
-  return false;
-}
-
 export async function GET() {
   const clerkUser = await currentUser();
   if (!clerkUser) {
@@ -31,36 +15,74 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
   const fullName =
     `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
 
-  const allRows = await prisma.salesAlignment.findMany();
-  const matched = allRows.filter(
-    (r) =>
-      namesMatch(fullName, r.csmName) ||
-      (r.secondCsm && namesMatch(fullName, r.secondCsm))
-  );
+  // Find roster entry by email first, then name
+  let rosterEntry = await prisma.csmRoster.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
 
-  const grouped: Record<string, { sellerName: string; marketTeam: string }[]> = {};
-  for (const row of matched) {
-    if (!grouped[row.team]) grouped[row.team] = [];
-    grouped[row.team].push({
-      sellerName: row.sellerName,
-      marketTeam: row.marketTeam,
+  if (!rosterEntry) {
+    const allRoster = await prisma.csmRoster.findMany();
+    const normalized = fullName.toLowerCase().replace(/[^a-z ]/g, "").trim();
+    rosterEntry = allRoster.find((r) => {
+      const rn = r.csmName.toLowerCase().replace(/[^a-z ]/g, "").trim();
+      return rn === normalized;
+    }) ?? null;
+  }
+
+  if (!rosterEntry) {
+    return NextResponse.json({
+      autoMatched: false,
+      vertical: user.vertical,
+      csManager: user.csManager,
+      rhoCs: user.rhoCs,
+      roster: null,
+      accounts: [],
+      totalAccounts: 0,
+      keywords: [],
     });
   }
 
+  // Get their accounts
+  const accounts = await prisma.csmAccount.findMany({
+    where: { csmName: rosterEntry.csmName },
+    orderBy: { corporateBrand: "asc" },
+  });
+
+  // Build keywords from accounts and roster
+  const cpNames = rosterEntry.cp ? rosterEntry.cp.split(",").map((s) => s.trim()) : [];
+  const brandNames = accounts.map((a) => a.corporateBrand);
+  const keywords = [
+    ...cpNames,
+    ...brandNames,
+    rosterEntry.team,
+    ...rosterEntry.team.split(/\s+/),
+  ].filter(Boolean);
+
   return NextResponse.json({
     autoMatched: user.autoMatchedBook,
-    vertical: user.vertical,
-    csManager: user.csManager,
-    rhoCs: user.rhoCs,
-    teams: grouped,
-    totalAccounts: matched.length,
-    keywords: matched.flatMap((r) => [
-      r.sellerName,
-      r.marketTeam,
-      r.team,
-    ]),
+    vertical: user.vertical ?? rosterEntry.team,
+    csManager: user.csManager ?? rosterEntry.manager,
+    rhoCs: user.rhoCs ?? rosterEntry.rho,
+    roster: {
+      csmName: rosterEntry.csmName,
+      email: rosterEntry.email,
+      level: rosterEntry.level,
+      status: rosterEntry.status,
+      team: rosterEntry.team,
+      region: rosterEntry.region,
+      location: rosterEntry.location,
+      cp: rosterEntry.cp,
+      photoUrl: rosterEntry.photoUrl,
+    },
+    accounts: accounts.map((a) => ({
+      corporateBrand: a.corporateBrand,
+      cp: a.cp,
+    })),
+    totalAccounts: accounts.length,
+    keywords,
   });
 }

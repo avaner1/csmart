@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { relativeTime } from "@/lib/time";
 import { useSavedItems } from "@/lib/use-saved-items";
+import { HandoffNotesDashboard, HandoffAlertBanner } from "@/components/handoff-notes";
 
 interface MyUpdate {
   text: string;
@@ -70,7 +71,8 @@ interface BookData {
   vertical: string | null;
   csManager: string | null;
   totalAccounts: number;
-  teams: Record<string, { sellerName: string; marketTeam: string }[]>;
+  roster: { level: string; team: string; region: string; cp: string } | null;
+  accounts: { corporateBrand: string; cp: string }[];
 }
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -255,6 +257,9 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Handoff alert banner */}
+      <HandoffAlertBanner />
+
       {/* CARD 1 — Updates for Your Book (full width) */}
       <div className="bg-spotify-card rounded-card border border-spotify-border p-5 mb-4 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
         <div className="flex items-center justify-between mb-3">
@@ -425,6 +430,9 @@ export default function DashboardPage() {
           )}
         </DashCard>
 
+        {/* Handoff Notes */}
+        <HandoffNotesDashboard />
+
         {/* CARD 7 — Inbox */}
         <DashCard title="Inbox" icon={<Mail size={15} />} borderColor="border-l-spotify-subtext/30" dimmed>
           <Mail size={20} className="text-spotify-subtext/40 mb-2" />
@@ -451,14 +459,12 @@ export default function DashboardPage() {
               </button>
               {bookExpanded && (
                 <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                  {Object.entries(book.teams).flatMap(([, sellers]) =>
-                    sellers.map((s) => (
-                      <div key={`${s.sellerName}-${s.marketTeam}`} className="flex items-center justify-between text-xs">
-                        <span className="text-white">{s.sellerName}</span>
-                        <span className="text-spotify-subtext">{s.marketTeam}</span>
-                      </div>
-                    ))
-                  )}
+                  {(book.accounts ?? []).map((a) => (
+                    <div key={a.corporateBrand} className="flex items-center justify-between text-xs">
+                      <span className="text-white truncate">{a.corporateBrand}</span>
+                      <span className="text-spotify-subtext flex-shrink-0 ml-2">{a.cp}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </>

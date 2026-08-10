@@ -8,13 +8,10 @@ import {
   enrichMessages,
 } from "@/lib/slack";
 
-function normalize(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
-}
-
-function namesMatch(a: string, b: string): boolean {
-  const na = normalize(a);
-  const nb = normalize(b);
+// Removed — using email-based matching now
+/*function namesMatch(a: string, b: string): boolean {
+  const na = a.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  const nb = b.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
   if (na === nb) return true;
   const ap = na.split(" ");
   const bp = nb.split(" ");
@@ -22,7 +19,7 @@ function namesMatch(a: string, b: string): boolean {
     return ap[0] === bp[0] && ap[ap.length - 1] === bp[bp.length - 1];
   }
   return false;
-}
+}*/
 
 export async function GET() {
   const clerkUser = await currentUser();
@@ -40,25 +37,53 @@ export async function GET() {
     return NextResponse.json({ connected: false });
   }
 
+  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
   const fullName =
     `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
 
-  const allRows = await prisma.salesAlignment.findMany();
-  const matched = allRows.filter(
-    (r) =>
-      namesMatch(fullName, r.csmName) ||
-      (r.secondCsm && namesMatch(fullName, r.secondCsm))
-  );
+  // Find roster entry by email, then name
+  let rosterEntry = await prisma.csmRoster.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (!rosterEntry) {
+    const allRoster = await prisma.csmRoster.findMany();
+    const normalized = fullName.toLowerCase().replace(/[^a-z ]/g, "").trim();
+    rosterEntry = allRoster.find((r) => {
+      const rn = r.csmName.toLowerCase().replace(/[^a-z ]/g, "").trim();
+      return rn === normalized;
+    }) ?? null;
+  }
 
-  if (matched.length === 0) {
+  if (!rosterEntry) {
     return NextResponse.json({ connected: true, hasBook: false, updates: [] });
   }
 
-  const keywords = matched.flatMap((r) => [
-    r.sellerName.toLowerCase(),
-    r.marketTeam.toLowerCase(),
-    r.team.toLowerCase(),
-  ]);
+  // Get accounts for keyword matching
+  const accounts = await prisma.csmAccount.findMany({
+    where: { csmName: rosterEntry.csmName },
+  });
+
+  const cpNames = rosterEntry.cp ? rosterEntry.cp.split(",").map((s) => s.trim().toLowerCase()) : [];
+  const brandNames = accounts.map((a) => a.corporateBrand.toLowerCase());
+
+  // Add coverage keywords
+  const coveringFor = user?.coveringFor ?? [];
+  let coverageKeywords: string[] = [];
+  if (coveringFor.length > 0) {
+    const coveredRosters = await prisma.csmRoster.findMany({
+      where: { csmName: { in: coveringFor } },
+    });
+    coverageKeywords = coveredRosters.flatMap((r) =>
+      r.cp ? r.cp.split(",").map((s) => s.trim().toLowerCase()) : []
+    );
+  }
+
+  const keywords = [
+    ...cpNames,
+    ...brandNames,
+    rosterEntry.team.toLowerCase(),
+    ...coverageKeywords,
+  ].filter(Boolean);
 
   try {
     const channels = await fetchChannels(token);

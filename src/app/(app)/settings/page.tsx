@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConnectionCards } from "@/components/connection-cards";
 import { BookOfBusiness } from "@/components/book-of-business";
+import { CoverageMode } from "@/components/coverage-mode";
 
 interface DbUser {
   slackConnected: boolean;
@@ -67,6 +68,13 @@ export default function SettingsPage() {
           My Book of Business
         </h2>
         <BookOfBusiness />
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-white mb-4">
+          Coverage Mode
+        </h2>
+        <CoverageMode />
       </div>
 
       <p className="text-xs text-spotify-subtext/50 mt-12 text-center">

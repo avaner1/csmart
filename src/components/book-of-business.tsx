@@ -8,7 +8,14 @@ interface BookData {
   vertical: string | null;
   csManager: string | null;
   rhoCs: string | null;
-  teams: Record<string, { sellerName: string; marketTeam: string }[]>;
+  roster: {
+    csmName: string;
+    level: string;
+    team: string;
+    region: string;
+    cp: string;
+  } | null;
+  accounts: { corporateBrand: string; cp: string }[];
   totalAccounts: number;
 }
 
@@ -49,7 +56,7 @@ export function BookOfBusiness({ compact = false }: BookOfBusinessProps) {
               No book of business found
             </p>
             <p className="text-sm text-spotify-subtext">
-              We couldn&apos;t auto-match your name to the Sales Alignment sheet.
+              We couldn&apos;t auto-match your name to the CSM Roster.
               Contact your manager if your alignment is missing.
             </p>
           </div>
@@ -57,11 +64,6 @@ export function BookOfBusiness({ compact = false }: BookOfBusinessProps) {
       </div>
     );
   }
-
-  const teamEntries = Object.entries(data.teams);
-  const teamSummary = teamEntries
-    .map(([team, sellers]) => `${sellers.length} in ${team}`)
-    .join(", ");
 
   if (compact) {
     return (
@@ -76,7 +78,11 @@ export function BookOfBusiness({ compact = false }: BookOfBusinessProps) {
           </span>
         </div>
 
-        <p className="text-sm text-spotify-subtext mb-2">{teamSummary}</p>
+        {data.roster && (
+          <p className="text-sm text-spotify-subtext mb-1">
+            {data.roster.team} · {data.roster.region}
+          </p>
+        )}
 
         {data.csManager && (
           <p className="text-xs text-spotify-subtext">
@@ -89,36 +95,18 @@ export function BookOfBusiness({ compact = false }: BookOfBusinessProps) {
           className="text-xs text-spotify-green hover:text-spotify-green/80 mt-3 flex items-center gap-0.5"
         >
           {expanded ? (
-            <>
-              Hide details <ChevronUp size={12} />
-            </>
+            <>Hide details <ChevronUp size={12} /></>
           ) : (
-            <>
-              Show accounts <ChevronDown size={12} />
-            </>
+            <>Show accounts <ChevronDown size={12} /></>
           )}
         </button>
 
         {expanded && (
-          <div className="mt-3 pt-3 border-t border-spotify-border/50 space-y-3">
-            {teamEntries.map(([team, sellers]) => (
-              <div key={team}>
-                <p className="text-xs text-spotify-subtext font-medium mb-1.5">
-                  {team}
-                </p>
-                <div className="space-y-1">
-                  {sellers.map((s) => (
-                    <div
-                      key={`${s.sellerName}-${s.marketTeam}`}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-white">{s.sellerName}</span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-spotify-border text-spotify-subtext">
-                        {s.marketTeam}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          <div className="mt-3 pt-3 border-t border-spotify-border/50 space-y-1 max-h-48 overflow-y-auto">
+            {data.accounts.map((a) => (
+              <div key={a.corporateBrand} className="flex items-center justify-between text-sm">
+                <span className="text-white truncate">{a.corporateBrand}</span>
+                <span className="text-xs text-spotify-subtext flex-shrink-0 ml-2">{a.cp}</span>
               </div>
             ))}
           </div>
@@ -134,55 +122,61 @@ export function BookOfBusiness({ compact = false }: BookOfBusinessProps) {
         <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-spotify-green/10 border border-spotify-green/20 rounded-card">
           <Users size={16} className="text-spotify-green flex-shrink-0" />
           <p className="text-sm text-spotify-green">
-            Your book was auto-populated from the Sales Alignment sheet.
+            Your book was auto-populated from the Global CSM Roster.
           </p>
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div>
-          <p className="text-xs text-spotify-subtext mb-1">Vertical</p>
+          <p className="text-xs text-spotify-subtext mb-1">Team</p>
           <p className="text-sm text-white font-medium">
             {data.vertical ?? "—"}
           </p>
         </div>
         <div>
-          <p className="text-xs text-spotify-subtext mb-1">CS Manager</p>
+          <p className="text-xs text-spotify-subtext mb-1">Manager</p>
           <p className="text-sm text-white font-medium">
             {data.csManager ?? "—"}
           </p>
         </div>
         <div>
-          <p className="text-xs text-spotify-subtext mb-1">RHO CS</p>
+          <p className="text-xs text-spotify-subtext mb-1">RHO</p>
           <p className="text-sm text-white font-medium">
             {data.rhoCs ?? "—"}
           </p>
         </div>
       </div>
 
+      {data.roster && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div>
+            <p className="text-xs text-spotify-subtext mb-1">Level</p>
+            <p className="text-sm text-white font-medium">{data.roster.level}</p>
+          </div>
+          <div>
+            <p className="text-xs text-spotify-subtext mb-1">Region</p>
+            <p className="text-sm text-white font-medium">{data.roster.region}</p>
+          </div>
+          <div>
+            <p className="text-xs text-spotify-subtext mb-1">Counterpart</p>
+            <p className="text-sm text-white font-medium">{data.roster.cp || "—"}</p>
+          </div>
+        </div>
+      )}
+
       <h3 className="text-sm font-semibold text-white mb-3">
-        Assigned Sellers ({data.totalAccounts})
+        Accounts ({data.totalAccounts})
       </h3>
 
-      <div className="space-y-4">
-        {teamEntries.map(([team, sellers]) => (
-          <div key={team}>
-            <p className="text-xs text-spotify-subtext font-medium mb-2 uppercase tracking-wider">
-              {team}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {sellers.map((s) => (
-                <div
-                  key={`${s.sellerName}-${s.marketTeam}`}
-                  className="flex items-center justify-between bg-spotify-border/30 rounded-card px-3 py-2"
-                >
-                  <span className="text-sm text-white">{s.sellerName}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-spotify-border text-spotify-subtext">
-                    {s.marketTeam}
-                  </span>
-                </div>
-              ))}
-            </div>
+      <div className="space-y-1 max-h-64 overflow-y-auto">
+        {data.accounts.map((a) => (
+          <div
+            key={a.corporateBrand}
+            className="flex items-center justify-between bg-spotify-border/30 rounded-card px-3 py-2"
+          >
+            <span className="text-sm text-white truncate">{a.corporateBrand}</span>
+            <span className="text-xs text-spotify-subtext flex-shrink-0 ml-2">{a.cp}</span>
           </div>
         ))}
       </div>

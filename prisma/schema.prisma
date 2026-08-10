@@ -22,10 +22,13 @@ model User {
   csManager        String?
   rhoCs            String?
   autoMatchedBook  Boolean     @default(false)
+  coveringFor      String[]
+  lastLoginAt      DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   savedItems       SavedItem[]
   adminItems       AdminItem[]
+  handoffNotes     HandoffNote[]
 }
 
 model SavedItem {
@@ -61,26 +64,42 @@ model AdminItem {
   updatedAt         DateTime  @updatedAt
 }
 
-model SalesAlignment {
-  id              String   @id @default(cuid())
-  region          String
-  subregion       String
-  hos             String
-  docp            String
-  team            String
-  sellerName      String
-  marketTeam      String
-  location        String?
-  rhoCs           String
-  csManager       String
-  csmName         String
-  secondCsm       String?
-  cpContractor    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model CsmRoster {
+  id          String       @id @default(cuid())
+  csmName     String
+  email       String
+  manager     String
+  rho         String
+  region      String
+  level       String
+  status      String       @default("Active")
+  title       String
+  location    String
+  team        String
+  cp          String
+  photoUrl    String?
+  notes       String?
+  lastUpdated DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  accounts      CsmAccount[]
+  handoffNotes  HandoffNote[]
+
+  @@index([email])
+  @@index([csmName])
+}
+
+model CsmAccount {
+  id             String     @id @default(cuid())
+  csmName        String
+  corporateBrand String
+  cp             String
+  rosterId       String?
+  roster         CsmRoster? @relation(fields: [rosterId], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
 
   @@index([csmName])
-  @@index([secondCsm])
+  @@index([corporateBrand])
 }
 
 model AppTheme {
@@ -100,4 +119,24 @@ model AppTheme {
   animationsEnabled  Boolean  @default(true)
   showUrgencyColors  Boolean  @default(true)
   updatedAt          DateTime @updatedAt
+}
+
+model HandoffNote {
+  id        String    @id @default(cuid())
+  rosterId  String
+  roster    CsmRoster @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  cpName    String
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  status    String    @default("active")
+  priority  String    @default("normal")
+  tags      String[]
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([rosterId])
+  @@index([cpName])
+  @@index([authorId])
 }

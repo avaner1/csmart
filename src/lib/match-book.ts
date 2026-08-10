@@ -17,21 +17,26 @@ function namesMatch(clerkName: string, dbName: string): boolean {
   return false;
 }
 
-export async function matchBookOfBusiness(userId: string, clerkName: string) {
-  const allRows = await prisma.salesAlignment.findMany();
+export async function matchBookOfBusiness(userId: string, clerkName: string, clerkEmail?: string) {
+  // Try exact email match first (most reliable)
+  let matched = clerkEmail
+    ? await prisma.csmRoster.findMany({
+        where: { email: { equals: clerkEmail, mode: "insensitive" } },
+      })
+    : [];
 
-  const matched = allRows.filter(
-    (r) =>
-      namesMatch(clerkName, r.csmName) ||
-      (r.secondCsm && namesMatch(clerkName, r.secondCsm))
-  );
+  // Fall back to fuzzy name match
+  if (matched.length === 0) {
+    const allRows = await prisma.csmRoster.findMany();
+    matched = allRows.filter((r) => namesMatch(clerkName, r.csmName));
+  }
 
   if (matched.length === 0) return null;
 
-  const teams = Array.from(new Set(matched.map((r) => r.team)));
-  const vertical = teams.join(", ");
-  const csManager = matched[0].csManager;
-  const rhoCs = matched[0].rhoCs;
+  const entry = matched[0];
+  const vertical = entry.team;
+  const csManager = entry.manager;
+  const rhoCs = entry.rho;
 
   await prisma.user.update({
     where: { id: userId },
@@ -40,6 +45,7 @@ export async function matchBookOfBusiness(userId: string, clerkName: string) {
       csManager,
       rhoCs,
       autoMatchedBook: true,
+      image: entry.photoUrl || undefined,
     },
   });
 

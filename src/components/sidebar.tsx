@@ -9,23 +9,28 @@ import {
   CalendarClock,
   Newspaper,
   Bookmark,
+  Users,
+  Search,
   Settings,
   Shield,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { CsmSearch } from "./csm-search";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/timeline", label: "Timeline", icon: CalendarClock },
   { href: "/digest", label: "Daily Digest", icon: Newspaper },
   { href: "/saved", label: "Saved for Later", icon: Bookmark },
+  { href: "/directory", label: "Directory", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
   const { user } = useUser();
 
@@ -37,6 +42,7 @@ export function Sidebar() {
   }, []);
 
   return (
+    <>
     <aside
       style={{ width: expanded ? "var(--sidebar-width)" : "var(--sidebar-collapsed-width)" }}
       className="fixed left-0 top-0 h-screen bg-spotify-black flex flex-col z-40 transition-all duration-300"
@@ -49,12 +55,21 @@ export function Sidebar() {
             CSMart
           </span>
         )}
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="p-1.5 rounded-card text-spotify-subtext hover:text-white hover:bg-spotify-card transition-colors"
-        >
-          {expanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="p-1.5 rounded-card text-spotify-subtext hover:text-white hover:bg-spotify-card transition-colors"
+            title="Who handles this?"
+          >
+            <Search size={16} />
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="p-1.5 rounded-card text-spotify-subtext hover:text-white hover:bg-spotify-card transition-colors"
+          >
+            {expanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 flex flex-col gap-1 px-3">
@@ -138,5 +153,9 @@ export function Sidebar() {
       </div>
     </aside>
 
+    {searchOpen && (
+      <CsmSearch isModal onClose={() => setSearchOpen(false)} />
+    )}
+    </>
   );
 }
