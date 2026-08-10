@@ -59,7 +59,8 @@ interface HandoffNotesProps {
   compact?: boolean;
 }
 
-export function HandoffNotes({ rosterId, cpField }: HandoffNotesProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function HandoffNotes({ rosterId, csmName, cpField, compact = false }: HandoffNotesProps) {
   const [notes, setNotes] = useState<HandoffNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
