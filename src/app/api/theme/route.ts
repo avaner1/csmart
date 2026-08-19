@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 async function getOrCreateTheme() {
   let theme = await prisma.appTheme.findFirst();
@@ -16,15 +18,11 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const user = await getDbUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-  });
-  if (!user?.isAdmin) {
+  if (!user.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

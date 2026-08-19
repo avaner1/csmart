@@ -1,44 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-
-async function getDbUser() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
-  return prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-}
+import { getDbUser } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const user = await getDbUser();
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { sourceType, sourceId, title, content, sourceUrl, tags } =
-    await request.json();
-
-  if (sourceId) {
-    const existing = await prisma.savedItem.findFirst({
-      where: { userId: user.id, sourceType, sourceId },
-    });
-    if (existing) {
-      return NextResponse.json({ item: existing });
+  try {
+    const user = await getDbUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
+
+    const { sourceType, sourceId, title, content, sourceUrl, tags } =
+      await request.json();
+
+    if (sourceId) {
+      const existing = await prisma.savedItem.findFirst({
+        where: { userId: user.id, sourceType, sourceId },
+      });
+      if (existing) {
+        return NextResponse.json({ item: existing });
+      }
+    }
+
+    const item = await prisma.savedItem.create({
+      data: {
+        userId: user.id,
+        sourceType,
+        sourceId: sourceId ?? null,
+        title: title || content?.slice(0, 100) || "Untitled",
+        content,
+        sourceUrl: sourceUrl ?? null,
+        tags: tags ?? [],
+      },
+    });
+
+    return NextResponse.json({ item });
+  } catch (error) {
+    console.error("Save item error:", error);
+    return NextResponse.json({ error: "Failed to save item" }, { status: 500 });
   }
-
-  const item = await prisma.savedItem.create({
-    data: {
-      userId: user.id,
-      sourceType,
-      sourceId: sourceId ?? null,
-      title: title || content?.slice(0, 100) || "Untitled",
-      content,
-      sourceUrl: sourceUrl ?? null,
-      tags: tags ?? [],
-    },
-  });
-
-  return NextResponse.json({ item });
 }
 
 export async function GET(request: NextRequest) {

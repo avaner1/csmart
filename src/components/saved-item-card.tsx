@@ -239,7 +239,7 @@ export function SavedItemCard({
             <div className="flex items-center gap-3 mt-2">
               <span className="inline-flex items-center gap-1 text-xs text-spotify-subtext/60">
                 <ShieldCheck size={11} />
-                Saved to CSMart — content preserved past Slack retention
+                Saved to CSmart — content preserved past Slack retention
               </span>
               {expired && (
                 <span className="text-xs text-spotify-subtext/50 italic">

@@ -7,7 +7,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await syncUser();
+  let user = null;
+  try {
+    user = await syncUser();
+  } catch (e) {
+    console.error("AppLayout syncUser error:", e);
+  }
 
   return (
     <SetupGuard slackConnected={user?.slackConnected ?? false}>

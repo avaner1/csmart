@@ -31,6 +31,8 @@ export default function SavedPage() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  // syncing state removed — stars sync runs silently in background
+  const [syncResult, setSyncResult] = useState<{ imported: number } | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -38,6 +40,24 @@ export default function SavedPage() {
   const [bookKeywords, setBookKeywords] = useState<string[]>([]);
   const debounceRef = useRef<NodeJS.Timeout>();
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const hasSynced = useRef(false);
+
+  // Sync Slack starred items on first visit (stars only — Slack's "Save for later" has no API)
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+
+    fetch("/api/slack/sync-stars", { method: "POST" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.imported > 0) {
+          setSyncResult({ imported: data.imported });
+          setTimeout(() => setSyncResult(null), 8000);
+          fetchItems(search);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/book")
@@ -177,6 +197,15 @@ export default function SavedPage() {
         )}
       </div>
 
+      {/* Import result */}
+      {syncResult && (
+        <div className="mb-4 px-4 py-3 bg-spotify-green/10 border border-spotify-green/20 rounded-card">
+          <p className="text-sm text-spotify-green">
+            Imported {syncResult.imported} starred message{syncResult.imported > 1 ? "s" : ""} from Slack
+          </p>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative mb-4">
         <Search
@@ -292,11 +321,15 @@ export default function SavedPage() {
               <h3 className="text-lg font-semibold text-white mb-2">
                 Your saved items will appear here
               </h3>
-              <p className="text-sm text-spotify-subtext max-w-md leading-relaxed">
+              <p className="text-sm text-spotify-subtext max-w-md leading-relaxed mb-3">
                 Bookmark Slack messages so they never disappear — even after
                 Slack&apos;s retention window expires. Perfect for switching
                 between books, waiting on responses, or keeping solutions you
                 might need again.
+              </p>
+              <p className="text-xs text-spotify-subtext/70 max-w-md leading-relaxed">
+                Two ways to save: use the bookmark button on any message in CSmart,
+                or right-click a message in Slack → More actions → &quot;Save to CSmart&quot;.
               </p>
             </>
           )}

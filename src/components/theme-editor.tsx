@@ -414,7 +414,7 @@ export function ThemeEditor() {
           }}
         >
           <div className="h-1 rounded-full" style={{ background: `linear-gradient(to right, ${theme.accentColor}cc, ${theme.accentColor}33)` }} />
-          <p className="text-xs font-bold px-2 pt-2" style={{ color: theme.primaryText }}>CSMart</p>
+          <p className="text-xs font-bold px-2 pt-2" style={{ color: theme.primaryText }}>CSmart</p>
           {["Dashboard", "Timeline", "Digest"].map((item, i) => (
             <div
               key={item}

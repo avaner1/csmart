@@ -21,7 +21,8 @@
 
 body {
   color: var(--text-primary);
-  background: var(--page-bg);
+  background: linear-gradient(180deg, var(--page-bg) 0%, #0d0d0d 100%);
+  min-height: 100vh;
   font-size: calc(14px * var(--font-scale));
 }
 
@@ -33,3 +34,59 @@ body {
 [data-spacing="compact"] .space-y-2 > * + * { margin-top: 0.25rem; }
 [data-spacing="spacious"] .space-y-2 > * + * { margin-top: 1rem; }
 [data-no-animations] * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+
+/* Card gradient and glow */
+.card-glow-green { box-shadow: -4px 0 12px rgba(29, 185, 84, 0.15); }
+.card-glow-orange { box-shadow: -4px 0 12px rgba(249, 115, 22, 0.15); }
+.card-glow-purple { box-shadow: -4px 0 12px rgba(168, 85, 247, 0.15); }
+.card-glow-blue { box-shadow: -4px 0 12px rgba(59, 130, 246, 0.15); }
+.card-glow-yellow { box-shadow: -4px 0 12px rgba(234, 179, 8, 0.15); }
+.card-glow-red { box-shadow: -4px 0 12px rgba(239, 68, 68, 0.15); }
+.card-glow-teal { box-shadow: -4px 0 12px rgba(20, 184, 166, 0.15); }
+
+/* Card base styles */
+.dash-card {
+  background: linear-gradient(180deg, #181818 0%, #1c1c1c 100%);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 200ms ease;
+}
+.dash-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Footer link hover animation */
+.footer-link:hover .arrow-icon {
+  transform: translateX(4px);
+}
+.arrow-icon {
+  transition: transform 200ms ease;
+  display: inline-block;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #181818 25%, #282828 50%, #181818 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Bookmark bounce */
+@keyframes bookmark-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+.bookmark-bounce {
+  animation: bookmark-bounce 300ms ease;
+}
+
+/* Subtle separator */
+.card-separator {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}

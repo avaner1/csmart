@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser, getVibeEmail } from "@/lib/auth";
 import {
   getSlackToken,
   fetchChannels,
@@ -8,38 +8,19 @@ import {
   enrichMessages,
 } from "@/lib/slack";
 
-// Removed — using email-based matching now
-/*function namesMatch(a: string, b: string): boolean {
-  const na = a.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-  const nb = b.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-  if (na === nb) return true;
-  const ap = na.split(" ");
-  const bp = nb.split(" ");
-  if (ap.length >= 2 && bp.length >= 2) {
-    return ap[0] === bp[0] && ap[ap.length - 1] === bp[bp.length - 1];
-  }
-  return false;
-}*/
-
 export async function GET() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const user = await getDbUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { token, dbUserId } = await getSlackToken();
-  if (!token || !dbUserId) {
+  const { token, hiddenChannels } = await getSlackToken();
+  if (!token) {
     return NextResponse.json({ connected: false });
   }
 
-  const user = await prisma.user.findUnique({ where: { id: dbUserId } });
-  if (!user) {
-    return NextResponse.json({ connected: false });
-  }
-
-  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-  const fullName =
-    `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
+  const email = (await getVibeEmail()) ?? "";
+  const fullName = user.name;
 
   // Find roster entry by email, then name
   let rosterEntry = await prisma.csmRoster.findFirst({
@@ -55,6 +36,7 @@ export async function GET() {
   }
 
   if (!rosterEntry) {
+    console.warn(`[my-updates] No roster match for user: ${user?.name} (${email}). autoMatchedBook=${user?.autoMatchedBook}`);
     return NextResponse.json({ connected: true, hasBook: false, updates: [] });
   }
 
@@ -86,7 +68,8 @@ export async function GET() {
   ].filter(Boolean);
 
   try {
-    const channels = await fetchChannels(token);
+    const allChannels = await fetchChannels(token);
+    const channels = allChannels.filter((c) => !hiddenChannels.includes(c.id));
     const americas = channels.find((c) => c.isAmericasCs);
 
     const targetChannels = americas
@@ -113,11 +96,14 @@ export async function GET() {
         const text = msg.text.toLowerCase();
         const matchedKeyword = keywords.find((kw) => text.includes(kw)) ?? null;
 
-        const totalReactions = msg.reactions.reduce((s, r) => s + r.count, 0);
+        const urgentWords = ["urgent", "asap", "immediately", "blocker", "blocked", "critical", "emergency", "p0", "sev0", "sev1", "reminder", "complete", "survey"];
+        const highWords = ["deadline", "eod", "end of day", "eow", "end of week", "time-sensitive", "time sensitive", "action required", "action needed", "please respond", "need response", "follow up needed", "escalat"];
+        const normalWords = ["fyi", "heads up", "heads-up", "update", "follow up", "checking in", "circling back"];
+
         let urgency: string;
-        if (msg.replyCount >= 10 || totalReactions >= 5) urgency = "urgent";
-        else if (msg.replyCount >= 5 || totalReactions >= 3) urgency = "high";
-        else if (msg.replyCount >= 2 || totalReactions >= 1) urgency = "normal";
+        if (urgentWords.some((w) => text.includes(w))) urgency = "urgent";
+        else if (highWords.some((w) => text.includes(w))) urgency = "high";
+        else if (normalWords.some((w) => text.includes(w))) urgency = "normal";
         else urgency = "low";
 
         return { ...msg, matchedKeyword, urgency };

@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser } from "@/lib/auth";
 
 export async function GET() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const user = await getDbUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-    select: { isAdmin: true },
-  });
 
   const now = new Date();
   const ninetyDaysOut = new Date(now);

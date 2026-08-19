@@ -12,6 +12,7 @@ import {
   Mail,
   Settings,
   Zap,
+  GraduationCap,
 } from "lucide-react";
 import Link from "next/link";
 import { HotTopicCard } from "@/components/hot-topic-card";
@@ -42,6 +43,16 @@ interface AdminItem {
   category: string;
   priority: string;
   link: string | null;
+}
+
+interface DigestTraining {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  dueDate: string;
+  category: string;
+  isRequired: boolean;
+  myStatus: string;
 }
 
 interface HotTopic {
@@ -103,6 +114,8 @@ export default function DigestPage() {
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
   const [hotTopicsConnected, setHotTopicsConnected] = useState(true);
   const [announcements, setAnnouncements] = useState<AdminItem[]>([]);
+  const [digestTrainings, setDigestTrainings] = useState<DigestTraining[]>([]);
+  const [updatingTrainingId, setUpdatingTrainingId] = useState<string | null>(null);
   const [slackMessages, setSlackMessages] = useState<SlackMsg[]>([]);
   const [slackConnected, setSlackConnected] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -136,18 +149,35 @@ export default function DigestPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    const [updatesRes, timelineRes, hotRes, messagesRes] = await Promise.allSettled([
+    const [updatesRes, timelineRes, hotRes, messagesRes, trainRes] = await Promise.allSettled([
       fetch("/api/slack/my-updates").then((r) => r.json()),
       fetch("/api/timeline").then((r) => r.json()),
       fetch("/api/slack/hot-topics").then((r) => r.json()),
       fetch("/api/slack/messages").then((r) => r.json()),
+      fetch("/api/trainings").then((r) => r.json()),
     ]);
 
     if (updatesRes.status === "fulfilled") {
       const d = updatesRes.value;
       setMyUpdatesStatus({ connected: d.connected !== false, hasBook: d.hasBook !== false });
       setMyUpdates(d.updates ?? []);
+      // Debug: log match status
+      console.log("[Digest] Book status:", { connected: d.connected, hasBook: d.hasBook, updateCount: (d.updates ?? []).length });
     }
+
+    // Debug: log user's book data
+    fetch("/api/book").then(r => r.json()).then(bookData => {
+      console.log("[Digest] Book data:", {
+        autoMatched: bookData.autoMatched,
+        vertical: bookData.vertical,
+        totalAccounts: bookData.totalAccounts,
+        keywordCount: (bookData.keywords ?? []).length,
+        keywords: (bookData.keywords ?? []).slice(0, 10),
+      });
+      if (!bookData.autoMatched) {
+        console.warn("[Digest] User not auto-matched to CsmRoster. Check name/email alignment.");
+      }
+    }).catch(() => {});
 
     if (timelineRes.status === "fulfilled") {
       const items: AdminItem[] = timelineRes.value.items ?? [];
@@ -180,6 +210,10 @@ export default function DigestPage() {
     if (messagesRes.status === "fulfilled") {
       setSlackConnected(messagesRes.value.connected !== false);
       setSlackMessages(messagesRes.value.messages ?? []);
+    }
+
+    if (trainRes.status === "fulfilled") {
+      setDigestTrainings(trainRes.value.trainings ?? []);
     }
 
     setLastUpdated(new Date());
@@ -299,8 +333,12 @@ export default function DigestPage() {
           <SlackPrompt />
         ) : !myUpdatesStatus?.hasBook ? (
           <div className="bg-spotify-card rounded-container border border-spotify-border p-6 text-center">
+            <Zap size={24} className="text-spotify-subtext mx-auto mb-3" />
+            <p className="text-sm text-white font-medium mb-1">
+              No book of business set up yet
+            </p>
             <p className="text-sm text-spotify-subtext mb-3">
-              Set up your book of business to see personalized updates.
+              Set up your book of business in Settings to see personalized Slack updates here.
             </p>
             <Link
               href="/settings"
@@ -310,9 +348,9 @@ export default function DigestPage() {
             </Link>
           </div>
         ) : myUpdates.length === 0 ? (
-          <div className="bg-spotify-card rounded-container border border-spotify-border p-6">
-            <p className="text-sm text-spotify-subtext text-center">
-              No updates matching your book right now
+          <div className="bg-spotify-card rounded-container border border-spotify-border p-6 text-center">
+            <p className="text-sm text-spotify-subtext">
+              No updates matching your book right now. Check back later — this section shows Slack messages mentioning your accounts and counterparts.
             </p>
           </div>
         ) : (
@@ -430,6 +468,22 @@ export default function DigestPage() {
         )}
       </section>
 
+      {/* Training Reminders */}
+      <TrainingReminders
+        trainings={digestTrainings}
+        updatingId={updatingTrainingId}
+        onMarkDone={async (id) => {
+          setUpdatingTrainingId(id);
+          await fetch(`/api/trainings/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "completed" }),
+          });
+          setUpdatingTrainingId(null);
+          fetchAll();
+        }}
+      />
+
       {/* SECTION 3 — Hot Topics */}
       <section>
         <h2 className="text-base font-semibold text-white mb-1">
@@ -442,9 +496,10 @@ export default function DigestPage() {
         {!hotTopicsConnected ? (
           <SlackPrompt />
         ) : hotTopics.length === 0 ? (
-          <div className="bg-spotify-card rounded-container border border-spotify-border p-6">
-            <p className="text-sm text-spotify-subtext text-center">
-              No trending discussions right now
+          <div className="bg-spotify-card rounded-container border border-spotify-border p-6 text-center">
+            <MessageSquare size={20} className="text-spotify-subtext mx-auto mb-2" />
+            <p className="text-sm text-spotify-subtext">
+              No trending discussions in the last 48 hours. Hot topics appear when threads get 5+ replies or 3+ reactions.
             </p>
           </div>
         ) : (
@@ -483,9 +538,9 @@ export default function DigestPage() {
         </div>
 
         {announcements.length === 0 ? (
-          <div className="bg-spotify-card rounded-container border border-spotify-border p-6">
-            <p className="text-sm text-spotify-subtext text-center">
-              No recent announcements
+          <div className="bg-spotify-card rounded-container border border-spotify-border p-6 text-center">
+            <p className="text-sm text-spotify-subtext">
+              No team announcements in the last 7 days. Admins can post announcements from the Admin panel.
             </p>
           </div>
         ) : (
@@ -594,6 +649,110 @@ export default function DigestPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function TrainingReminders({
+  trainings,
+  updatingId,
+  onMarkDone,
+}: {
+  trainings: DigestTraining[];
+  updatingId: string | null;
+  onMarkDone: (id: string) => void;
+}) {
+  const incomplete = trainings.filter((t) => t.myStatus !== "completed");
+
+  // Split into overdue and upcoming (within 7 days)
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const overdue = incomplete.filter((t) => {
+    const due = new Date(t.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due < now;
+  });
+
+  const upcomingWeek = incomplete.filter((t) => {
+    const due = new Date(t.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
+    return diff >= 0 && diff <= 7;
+  });
+
+  const displayItems = [...overdue, ...upcomingWeek];
+
+  function dueLabel(dueDate: string) {
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
+    if (diff < 0) return { text: "OVERDUE", cls: "text-spotify-error font-semibold" };
+    if (diff === 0) return { text: "Due today", cls: "text-spotify-warning" };
+    if (diff === 1) return { text: "Due tomorrow", cls: "text-spotify-warning" };
+    return {
+      text: `Due ${due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+      cls: "text-spotify-subtext",
+    };
+  }
+
+  return (
+    <section>
+      <h2 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+        <GraduationCap size={16} className="text-purple-400" />
+        Training Reminders
+      </h2>
+
+      {displayItems.length === 0 ? (
+        <div className="bg-spotify-card rounded-container border border-spotify-border p-6">
+          <p className="text-sm text-spotify-subtext text-center">
+            You&apos;re all caught up on trainings
+          </p>
+        </div>
+      ) : (
+        <div className="bg-spotify-card rounded-container border border-spotify-border divide-y divide-spotify-border/30">
+          {displayItems.map((t) => {
+            const dl = dueLabel(t.dueDate);
+            const isOverdue = dl.text === "OVERDUE";
+            return (
+              <div
+                key={t.id}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-spotify-border/20 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-sm font-medium text-white truncate">{t.title}</p>
+                    {isOverdue && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-spotify-error/15 text-spotify-error font-semibold flex-shrink-0">
+                        OVERDUE
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-xs ${dl.cls}`}>
+                    {isOverdue ? new Date(t.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : dl.text}
+                  </p>
+                </div>
+                <a
+                  href={t.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded text-spotify-subtext hover:text-white hover:bg-spotify-border transition-colors flex-shrink-0"
+                >
+                  <ExternalLink size={13} />
+                </a>
+                <button
+                  onClick={() => onMarkDone(t.id)}
+                  disabled={updatingId === t.id}
+                  className="text-xs px-2.5 py-1 rounded-card bg-spotify-green/15 text-spotify-green hover:bg-spotify-green/25 transition-colors flex-shrink-0 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Check size={11} />
+                  Mark Done
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

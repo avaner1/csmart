@@ -1,5 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
-import { prisma } from "./prisma";
+import { getDbUser } from "./auth";
 
 export interface SlackUser {
   id: string;
@@ -40,7 +39,7 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 10 * 60 * 1000;
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -59,19 +58,16 @@ export async function getSlackToken(): Promise<{
   token: string | null;
   userId: string | null;
   dbUserId: string | null;
+  hiddenChannels: string[];
 }> {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return { token: null, userId: null, dbUserId: null };
-
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-    select: { id: true, slackAccessToken: true },
-  });
+  const user = await getDbUser();
+  if (!user) return { token: null, userId: null, dbUserId: null, hiddenChannels: [] };
 
   return {
-    token: user?.slackAccessToken ?? null,
-    userId: clerkUser.id,
-    dbUserId: user?.id ?? null,
+    token: user.slackAccessToken ?? null,
+    userId: user.id,
+    dbUserId: user.id,
+    hiddenChannels: (user.hiddenChannels ?? []) as string[],
   };
 }
 
@@ -83,15 +79,26 @@ export async function slackApi<T>(
   const url = new URL(`https://slack.com/api/${method}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  const data = await res.json();
-  if (!data.ok) {
-    throw new Error(`Slack API error (${method}): ${data.error}`);
+    const data = await res.json();
+
+    if (data.error === "ratelimited") {
+      const retryAfter = parseInt(res.headers.get("Retry-After") ?? "3", 10);
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      continue;
+    }
+
+    if (!data.ok) {
+      throw new Error(`Slack API error (${method}): ${data.error}`);
+    }
+    return data;
   }
-  return data;
+
+  throw new Error(`Slack API rate limited after retries (${method})`);
 }
 
 export async function fetchUserProfile(
@@ -129,21 +136,32 @@ export async function fetchChannels(token: string) {
   >(cacheKey);
   if (cached) return cached;
 
-  const data = await slackApi<{
-    channels: { id: string; name: string; is_member: boolean }[];
-  }>(token, "conversations.list", {
-    types: "public_channel,private_channel",
-    limit: "200",
-    exclude_archived: "true",
-  });
+  // Use users.conversations to get only channels the user is in (much faster, no pagination needed for most users)
+  const memberChannels: { id: string; name: string }[] = [];
+  let cursor = "";
 
-  const channels = data.channels
-    .filter((c) => c.is_member)
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      isAmericasCs: c.name === "americas-customer-success",
-    }));
+  do {
+    const params: Record<string, string> = {
+      types: "public_channel,private_channel",
+      limit: "200",
+      exclude_archived: "true",
+    };
+    if (cursor) params.cursor = cursor;
+
+    const data = await slackApi<{
+      channels: { id: string; name: string }[];
+      response_metadata?: { next_cursor?: string };
+    }>(token, "users.conversations", params);
+
+    memberChannels.push(...data.channels);
+    cursor = data.response_metadata?.next_cursor ?? "";
+  } while (cursor);
+
+  const channels = memberChannels.map((c) => ({
+    id: c.id,
+    name: c.name,
+    isAmericasCs: c.name === "americas-customer-success",
+  }));
 
   setCache(cacheKey, channels);
   return channels;

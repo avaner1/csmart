@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser, getVibeEmail } from "@/lib/auth";
 
 export async function GET() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const user = await getDbUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-  });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-  const fullName =
-    `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
+  const email = (await getVibeEmail()) ?? "";
+  const fullName = user.name;
 
   // Find roster entry by email first, then name
   let rosterEntry = await prisma.csmRoster.findFirst({

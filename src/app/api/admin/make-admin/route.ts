@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const caller = await getDbUser();
+  if (!caller) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-
-  const caller = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-  });
-  if (!caller?.isAdmin) {
+  if (!caller.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -55,11 +55,17 @@ export function useSavedItems() {
       } else {
         savedSet.add(key);
         setSavedIds(new Set(savedSet));
-        await fetch("/api/saved", {
+        const res = await fetch("/api/saved", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(item),
         });
+        if (!res.ok) {
+          // Revert on failure
+          savedSet.delete(key);
+          setSavedIds(new Set(savedSet));
+          console.error("Save failed:", await res.text());
+        }
       }
 
       return !wasSaved;

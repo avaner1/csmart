@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { Suspense, useEffect, useState } from "react";
+import { useAppUser } from "@/components/user-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ConnectionCards } from "@/components/connection-cards";
 import { ArrowRight } from "lucide-react";
@@ -12,11 +12,19 @@ interface DbUser {
 }
 
 export default function SetupPage() {
-  const { user: clerkUser, isLoaded } = useUser();
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-spotify-darkgray flex items-center justify-center"><div className="w-6 h-6 border-2 border-spotify-green border-t-transparent rounded-full animate-spin" /></div>}>
+      <SetupContent />
+    </Suspense>
+  );
+}
+
+function SetupContent() {
+  const { user, loading: userLoading } = useAppUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const slackStatus = searchParams.get("slack");
 
   useEffect(() => {
@@ -35,13 +43,13 @@ export default function SetupPage() {
           }
         }
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     }
-    if (isLoaded) fetchUser();
-  }, [isLoaded, slackStatus, router]);
+    if (!userLoading) fetchUser();
+  }, [userLoading, slackStatus, router]);
 
-  if (!isLoaded || loading) {
+  if (userLoading || dataLoading) {
     return (
       <div className="min-h-screen bg-spotify-darkgray flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-spotify-green border-t-transparent rounded-full animate-spin" />
@@ -49,7 +57,7 @@ export default function SetupPage() {
     );
   }
 
-  const firstName = clerkUser?.firstName ?? "there";
+  const firstName = user?.name?.split(" ")[0] ?? "there";
 
   return (
     <div className="min-h-screen bg-spotify-darkgray">
@@ -58,7 +66,7 @@ export default function SetupPage() {
       <div className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Welcome to CSMart, {firstName}
+            Welcome to CSmart, {firstName}
           </h1>
           <p className="text-spotify-subtext text-lg">
             Let&apos;s connect your tools so everything lives in one place.

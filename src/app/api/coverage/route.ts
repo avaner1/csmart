@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser } from "@/lib/auth";
 
 export async function GET() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const user = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await getDbUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const coveringFor = user.coveringFor ?? [];
   const coveredPeople = coveringFor.length > 0
@@ -21,11 +18,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const user = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const user = await getDbUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { csmName, action } = await request.json();
 

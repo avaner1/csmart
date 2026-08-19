@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-
-async function getDbUser() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
-  return prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-}
+import { getDbUser } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,

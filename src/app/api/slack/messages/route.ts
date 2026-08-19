@@ -7,7 +7,7 @@ import {
 } from "@/lib/slack";
 
 export async function GET(request: NextRequest) {
-  const { token } = await getSlackToken();
+  const { token, hiddenChannels } = await getSlackToken();
   if (!token) {
     return NextResponse.json({ connected: false });
   }
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
   const channelFilter = request.nextUrl.searchParams.get("channel");
 
   try {
-    const channels = await fetchChannels(token);
+    const allChannels = await fetchChannels(token);
+    const channels = allChannels.filter((c) => !hiddenChannels.includes(c.id));
 
     let targetChannels = channels;
     if (channelFilter) {

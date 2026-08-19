@@ -9,13 +9,14 @@ import {
 } from "@/lib/slack";
 
 export async function GET() {
-  const { token } = await getSlackToken();
+  const { token, hiddenChannels } = await getSlackToken();
   if (!token) {
     return NextResponse.json({ connected: false });
   }
 
   try {
-    const channels = await fetchChannels(token);
+    const allChannels = await fetchChannels(token);
+    const channels = allChannels.filter((c) => !hiddenChannels.includes(c.id));
     const americas = channels.find((c) => c.isAmericasCs);
 
     if (!americas) {

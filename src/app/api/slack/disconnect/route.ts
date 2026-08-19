@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { getDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
+  const user = await getDbUser();
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   await prisma.user.update({
-    where: { clerkId: clerkUser.id },
+    where: { id: user.id },
     data: {
       slackAccessToken: null,
       slackTeamName: null,

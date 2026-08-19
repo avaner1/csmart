@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAppUser } from "@/components/user-provider";
 import Link from "next/link";
 import {
   ExternalLink,
@@ -17,6 +17,9 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  GraduationCap,
+  Check,
+  ArrowRight,
 } from "lucide-react";
 import { relativeTime } from "@/lib/time";
 import { useSavedItems } from "@/lib/use-saved-items";
@@ -75,6 +78,16 @@ interface BookData {
   accounts: { corporateBrand: string; cp: string }[];
 }
 
+interface TrainingItem {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  dueDate: string;
+  category: string;
+  isRequired: boolean;
+  myStatus: string;
+}
+
 const PRIORITY_DOT: Record<string, string> = {
   urgent: "bg-spotify-error",
   high: "bg-spotify-warning",
@@ -118,7 +131,7 @@ function dayLabel(dateStr: string) {
 }
 
 export default function DashboardPage() {
-  const { user: clerkUser } = useUser();
+  const { user: appUser } = useAppUser();
   const { isSaved, toggleSave } = useSavedItems();
 
   const [myUpdates, setMyUpdates] = useState<MyUpdate[]>([]);
@@ -130,6 +143,7 @@ export default function DashboardPage() {
   const [slackConnected, setSlackConnected] = useState(true);
   const [newItems, setNewItems] = useState<TimelineItem[]>([]);
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [book, setBook] = useState<BookData | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -142,7 +156,7 @@ export default function DashboardPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [updRes, tlRes, hotRes, msgRes, savedRes, bookRes, userRes, slackStatusRes] = await Promise.allSettled([
+    const [updRes, tlRes, hotRes, msgRes, savedRes, bookRes, userRes, slackStatusRes, trainRes] = await Promise.allSettled([
       fetch("/api/slack/my-updates").then((r) => r.json()),
       fetch("/api/timeline").then((r) => r.json()),
       fetch("/api/slack/hot-topics").then((r) => r.json()),
@@ -151,6 +165,7 @@ export default function DashboardPage() {
       fetch("/api/book").then((r) => r.json()),
       fetch("/api/user").then((r) => r.json()),
       fetch("/api/slack/status").then((r) => r.json()),
+      fetch("/api/trainings").then((r) => r.json()),
     ]);
 
     if (updRes.status === "fulfilled") {
@@ -189,6 +204,7 @@ export default function DashboardPage() {
     if (bookRes.status === "fulfilled") setBook(bookRes.value);
     if (userRes.status === "fulfilled") setIsAdmin(userRes.value.user?.isAdmin ?? false);
     if (slackStatusRes.status === "fulfilled") setNeedsReconnect(slackStatusRes.value.needsReconnect ?? false);
+    if (trainRes.status === "fulfilled") setTrainings(trainRes.value.trainings ?? []);
 
     setLoading(false);
   }, []);
@@ -212,17 +228,17 @@ export default function DashboardPage() {
     fetchAll();
   }
 
-  const firstName = clerkUser?.firstName ?? "there";
+  const firstName = appUser?.name?.split(" ")[0] ?? "there";
   const todayStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   if (loading) {
     return (
       <div className="max-w-5xl">
-        <h1 className="text-2xl font-bold text-white mb-2">{getGreeting()}, {firstName}</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">{getGreeting()}, {firstName}</h1>
         <p className="text-spotify-subtext text-sm mb-8">{todayStr}</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="bg-spotify-card rounded-card border border-spotify-border p-5 h-44 animate-pulse" />
+            <div key={i} className="skeleton p-5 h-44" />
           ))}
         </div>
       </div>
@@ -233,13 +249,12 @@ export default function DashboardPage() {
     <div className="max-w-5xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">{getGreeting()}, {firstName}</h1>
-        <p className="text-spotify-subtext text-sm mt-1">{todayStr}</p>
-        <p className="text-xs text-spotify-subtext mt-2">
-          {weekItems.length} items due this week
-          {myUpdates.length > 0 && <> · {myUpdates.length} updates for your book</>}
-          {hotTopics.length > 0 && <> · {hotTopics.length} hot topics in Slack</>}
+        <h1 className="text-3xl font-bold text-white mb-1">{getGreeting()}, {firstName}</h1>
+        <p className="text-spotify-subtext text-sm mb-3">{todayStr}</p>
+        <p className="text-xs text-spotify-subtext">
+          {weekItems.length} items due this week · {slackMsgs.length} recent Slack messages · {trainings?.length ?? 0} trainings due
         </p>
+        <div className="h-px bg-spotify-border/30 mt-6 mb-6" />
       </div>
 
       {/* Slack reconnect banner */}
@@ -261,21 +276,21 @@ export default function DashboardPage() {
       <HandoffAlertBanner />
 
       {/* CARD 1 — Updates for Your Book (full width) */}
-      <div className="bg-spotify-card rounded-card border border-spotify-border p-5 mb-4 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
+      <div className="dash-card border border-spotify-border/50 mb-4" style={{ background: 'linear-gradient(135deg, rgba(29, 185, 84, 0.04) 0%, transparent 60%)' }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-white flex items-center gap-2">
             <Zap size={15} className="text-spotify-green" />
             Updates for Your Book
           </h2>
           <div className="flex gap-1">
-            {["all", "urgent", "high", "normal"].map((f) => (
+            {["all", "urgent", "high", "normal", "low"].map((f) => (
               <button
                 key={f}
                 onClick={() => setUrgencyFilter(f)}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                className={`px-3 py-1 text-xs rounded-full border transition-all duration-200 ${
                   urgencyFilter === f
-                    ? "bg-spotify-green text-black font-medium"
-                    : "text-spotify-subtext hover:text-white"
+                    ? "bg-spotify-green text-black font-semibold border-spotify-green"
+                    : "border-spotify-border text-spotify-subtext hover:text-white hover:border-spotify-subtext"
                 }`}
               >
                 {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -291,7 +306,11 @@ export default function DashboardPage() {
             Set up your book of business to get personalized updates &rarr;
           </Link>
         ) : filteredUpdates.length === 0 ? (
-          <p className="text-sm text-spotify-subtext">No updates for your book right now</p>
+          <p className="text-sm text-spotify-subtext">
+            {urgencyFilter === "all"
+              ? "No updates for your book right now"
+              : `No ${urgencyFilter} updates right now`}
+          </p>
         ) : (
           <div className="space-y-2">
             {filteredUpdates.map((u) => (
@@ -330,27 +349,27 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-        <Link href="/digest" className="block text-xs text-spotify-green hover:underline mt-3">
-          View all in Daily Digest &rarr;
+        <Link href="/digest" className="footer-link block text-xs text-spotify-green hover:underline mt-3">
+          View all in Daily Digest <span className="arrow-icon">&rarr;</span>
         </Link>
       </div>
 
       {/* Grid Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
         {/* CARD 2 — This Week */}
-        <DashCard title="This Week" icon={<CalendarDays size={15} />} borderColor="border-l-spotify-green" footer={<Link href="/timeline" className="text-xs text-spotify-green hover:underline">View Timeline &rarr;</Link>}>
+        <DashCard title="This Week" icon={<CalendarDays size={15} />} borderColor="border-l-spotify-green" footer={<Link href="/timeline" className="footer-link text-xs text-spotify-green hover:underline">View Timeline <span className="arrow-icon">&rarr;</span></Link>}>
           <div className="flex items-center gap-2 mb-3">
             {urgentCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-spotify-error/15 text-spotify-error">{urgentCount} urgent</span>}
-            <span className="text-xs text-spotify-subtext">{weekItems.length} items</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-spotify-border text-spotify-subtext">{weekItems.length} items</span>
           </div>
           {weekItems.length === 0 ? (
             <p className="text-xs text-spotify-subtext">Clear week ahead</p>
           ) : (
-            <div className="space-y-1.5">
-              {weekItems.slice(0, 3).map((i) => (
-                <div key={i.id} className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[i.priority]}`} />
+            <div>
+              {weekItems.slice(0, 3).map((i, idx) => (
+                <div key={i.id} className={`flex items-center gap-2 py-1.5 ${idx > 0 ? "card-separator" : ""}`}>
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[i.priority]}`} />
                   <span className="text-xs text-white truncate flex-1">{i.title}</span>
                   <span className="text-xs text-spotify-subtext flex-shrink-0">{dayLabel(i.date)}</span>
                 </div>
@@ -360,7 +379,7 @@ export default function DashboardPage() {
         </DashCard>
 
         {/* CARD 3 — Hot Topics */}
-        <DashCard title="Hot Topics" icon={<Flame size={15} />} borderColor="border-l-orange-400" footer={<Link href="/digest" className="text-xs text-spotify-green hover:underline">View Daily Digest &rarr;</Link>}>
+        <DashCard title="Hot Topics" icon={<Flame size={15} />} borderColor="border-l-orange-400" footer={<Link href="/digest" className="footer-link text-xs text-spotify-green hover:underline">View Daily Digest <span className="arrow-icon">&rarr;</span></Link>}>
           {!hotConnected ? <SlackCta small /> : hotTopics.length === 0 ? (
             <p className="text-xs text-spotify-subtext">No trending discussions</p>
           ) : (
@@ -376,18 +395,21 @@ export default function DashboardPage() {
         </DashCard>
 
         {/* CARD 4 — Slack Activity */}
-        <DashCard title="Slack Activity" icon={<MessageSquare size={15} />} borderColor="border-l-purple-400" footer={<Link href="/digest" className="text-xs text-spotify-green hover:underline">Open Daily Digest &rarr;</Link>}>
+        <DashCard title="Slack Activity" icon={<MessageSquare size={15} />} borderColor="border-l-purple-400" footer={<Link href="/digest" className="footer-link text-xs text-spotify-green hover:underline">Open Daily Digest <span className="arrow-icon">&rarr;</span></Link>}>
           {!slackConnected ? <SlackCta small /> : slackMsgs.length === 0 ? (
             <p className="text-xs text-spotify-subtext">No recent messages</p>
           ) : (
             <>
               <p className="text-xs text-spotify-subtext mb-2">{slackMsgs.length} recent messages</p>
-              <div className="space-y-1.5">
-                {slackMsgs.map((m) => (
-                  <div key={m.ts} className="text-xs">
-                    <span className="text-white font-medium">{m.authorName}</span>
-                    <span className="text-spotify-subtext"> in #{m.channelName}</span>
-                    <p className="text-spotify-subtext line-clamp-1">{m.text}</p>
+              <div>
+                {slackMsgs.map((m, idx) => (
+                  <div key={m.ts} className={`text-xs py-1.5 ${idx > 0 ? "card-separator" : ""}`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-purple-500/30 text-purple-400 flex items-center justify-center text-xs flex-shrink-0">{m.authorName[0]}</span>
+                      <span className="text-white font-medium">{m.authorName}</span>
+                      <span className="text-spotify-green/70"> in #{m.channelName}</span>
+                    </div>
+                    <p className="text-spotify-subtext line-clamp-1 mt-0.5 ml-6.5">{m.text}</p>
                   </div>
                 ))}
               </div>
@@ -396,7 +418,7 @@ export default function DashboardPage() {
         </DashCard>
 
         {/* CARD 5 — What's New */}
-        <DashCard title="What's New" icon={<Rocket size={15} />} borderColor="border-l-teal-400" footer={<Link href="/timeline" className="text-xs text-spotify-green hover:underline">View Timeline &rarr;</Link>}>
+        <DashCard title="What's New" icon={<Rocket size={15} />} borderColor="border-l-teal-400" footer={<Link href="/timeline" className="footer-link text-xs text-spotify-green hover:underline">View Timeline <span className="arrow-icon">&rarr;</span></Link>}>
           {newItems.length === 0 ? (
             <p className="text-xs text-spotify-subtext">No recent updates</p>
           ) : (
@@ -415,14 +437,14 @@ export default function DashboardPage() {
         </DashCard>
 
         {/* CARD 6 — Saved Items */}
-        <DashCard title="Saved Items" icon={<Bookmark size={15} />} borderColor="border-l-blue-400" footer={<Link href="/saved" className="text-xs text-spotify-green hover:underline">View Saved &rarr;</Link>}>
+        <DashCard title="Saved Items" icon={<Bookmark size={15} />} borderColor="border-l-blue-400" footer={<Link href="/saved" className="footer-link text-xs text-spotify-green hover:underline">View Saved <span className="arrow-icon">&rarr;</span></Link>}>
           {savedItems.length === 0 ? (
             <p className="text-xs text-spotify-subtext">Bookmark messages to build your library</p>
           ) : (
-            <div className="space-y-1.5">
-              {savedItems.map((s) => (
-                <div key={s.id} className="flex items-center gap-2">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${s.sourceType === "slack" ? "bg-purple-400/15 text-purple-400" : "bg-spotify-border text-spotify-subtext"}`}>{s.sourceType}</span>
+            <div>
+              {savedItems.map((s, idx) => (
+                <div key={s.id} className={`flex items-center gap-2 py-1.5 ${idx > 0 ? "card-separator" : ""}`}>
+                  <span className={`text-xs px-2 py-0.5 ${s.sourceType === "slack" ? "bg-purple-500/20 text-purple-300 rounded-full" : "bg-spotify-border text-spotify-subtext rounded"}`}>{s.sourceType}</span>
                   <span className="text-xs text-white truncate">{s.title}</span>
                 </div>
               ))}
@@ -430,20 +452,31 @@ export default function DashboardPage() {
           )}
         </DashCard>
 
+        {/* Trainings Card */}
+        <TrainingsDashCard trainings={trainings} onStatusChange={fetchAll} />
+
         {/* Handoff Notes */}
         <HandoffNotesDashboard />
 
         {/* CARD 7 — Inbox */}
-        <DashCard title="Inbox" icon={<Mail size={15} />} borderColor="border-l-spotify-subtext/30" dimmed>
-          <Mail size={20} className="text-spotify-subtext/40 mb-2" />
-          <p className="text-xs text-spotify-subtext/60">Gmail integration coming soon</p>
-        </DashCard>
+        <div className="opacity-50">
+          <DashCard title="Inbox" icon={<Mail size={15} />} borderColor="border-l-spotify-subtext/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail size={32} className="text-spotify-subtext/40" />
+              <span className="text-xs px-2 py-0.5 rounded-full bg-spotify-subtext/20 text-spotify-subtext">Coming Soon</span>
+            </div>
+            <p className="text-xs text-spotify-subtext/60">Gmail integration coming soon</p>
+          </DashCard>
+        </div>
 
         {/* CARD 8 — My Book */}
-        <DashCard title="My Book" icon={<Users size={15} />} borderColor="border-l-white/20" footer={<Link href="/settings" className="text-xs text-spotify-green hover:underline">Edit in Settings &rarr;</Link>}>
+        <DashCard title="My Book" icon={<Users size={15} />} borderColor="border-l-white/20" footer={<Link href="/settings" className="footer-link text-xs text-spotify-green hover:underline">Edit in Settings <span className="arrow-icon">&rarr;</span></Link>}>
           {!book || book.totalAccounts === 0 ? (
-            <Link href="/settings" className="text-xs text-spotify-subtext hover:text-spotify-green transition-colors">
-              Set up your book &rarr;
+            <Link href="/settings" className="block">
+              <div className="bg-spotify-border/20 rounded-card p-3 flex items-center gap-2">
+                <span className="text-xs text-spotify-subtext hover:text-spotify-green transition-colors">Set up your book</span>
+                <ArrowRight size={14} className="text-spotify-green" />
+              </div>
             </Link>
           ) : (
             <>
@@ -545,6 +578,17 @@ export default function DashboardPage() {
   );
 }
 
+const GLOW_MAP: Record<string, string> = {
+  "border-l-spotify-green": "card-glow-green",
+  "border-l-orange-400": "card-glow-orange",
+  "border-l-purple-400": "card-glow-purple",
+  "border-l-blue-400": "card-glow-blue",
+  "border-l-teal-400": "card-glow-teal",
+  "border-l-purple-500": "card-glow-purple",
+  "border-l-yellow-400": "card-glow-yellow",
+  "border-l-red-400": "card-glow-red",
+};
+
 function DashCard({
   title,
   icon,
@@ -560,17 +604,131 @@ function DashCard({
   dimmed?: boolean;
   children: React.ReactNode;
 }) {
+  const glowClass = GLOW_MAP[borderColor] ?? "";
   return (
     <div
-      className={`bg-spotify-card rounded-card border border-spotify-border border-l-4 ${borderColor} p-5 flex flex-col hover:translate-y-[-2px] hover:shadow-lg hover:shadow-black/20 transition-all duration-200 ${dimmed ? "opacity-40" : ""}`}
+      className={`dash-card border border-spotify-border/50 border-l-4 ${borderColor} ${glowClass} flex flex-col ${dimmed ? "opacity-50" : ""}`}
     >
       <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
         {icon}
         {title}
       </h3>
       <div className="flex-1">{children}</div>
-      {footer && <div className="mt-3 pt-3 border-t border-spotify-border/50">{footer}</div>}
+      {footer && <div className="mt-3 pt-3 card-separator">{footer}</div>}
     </div>
+  );
+}
+
+function TrainingsDashCard({ trainings, onStatusChange }: { trainings: TrainingItem[]; onStatusChange: () => void }) {
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const incomplete = trainings.filter((t) => t.myStatus !== "completed");
+  const overdue = incomplete.filter((t) => {
+    const due = new Date(t.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return due < now;
+  });
+  const upcoming = incomplete
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 3);
+
+  const total = trainings.length;
+  const completed = trainings.filter((t) => t.myStatus === "completed").length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  async function markDone(id: string) {
+    setUpdatingId(id);
+    await fetch(`/api/trainings/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "completed" }),
+    });
+    setUpdatingId(null);
+    onStatusChange();
+  }
+
+  const STATUS_DOT: Record<string, string> = {
+    "not-started": "bg-spotify-error",
+    "in-progress": "bg-spotify-warning",
+    completed: "bg-spotify-green",
+  };
+
+  function dueLabel(d: string) {
+    const due = new Date(d);
+    due.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
+    if (diff < 0) return { text: "OVERDUE", cls: "text-spotify-error font-semibold" };
+    if (diff === 0) return { text: "Today", cls: "text-spotify-warning" };
+    if (diff === 1) return { text: "Tomorrow", cls: "text-spotify-warning" };
+    return { text: due.toLocaleDateString("en-US", { month: "short", day: "numeric" }), cls: "text-spotify-subtext" };
+  }
+
+  return (
+    <DashCard
+      title="Trainings"
+      icon={<GraduationCap size={15} />}
+      borderColor="border-l-purple-500"
+      footer={<Link href="/timeline" className="footer-link text-xs text-spotify-green hover:underline">View all in Timeline <span className="arrow-icon">&rarr;</span></Link>}
+    >
+      {upcoming.length === 0 ? (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-spotify-subtext">{incomplete.length} incomplete</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <span>&#x2705;</span>
+            <span className="text-sm text-spotify-green">All caught up!</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            {overdue.length > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-spotify-error/15 text-spotify-error font-medium">
+                {overdue.length} overdue
+              </span>
+            )}
+            <span className="text-xs text-spotify-subtext">{incomplete.length} incomplete</span>
+          </div>
+          <div>
+            {upcoming.map((t, idx) => {
+              const dl = dueLabel(t.dueDate);
+              return (
+                <div key={t.id} className={`flex items-center gap-2 py-1.5 ${idx > 0 ? "card-separator" : ""}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[t.myStatus] ?? "bg-spotify-subtext"}`} />
+                  <span className="text-xs text-white truncate flex-1">{t.title}</span>
+                  <span className={`text-xs flex-shrink-0 ${dl.cls}`}>{dl.text}</span>
+                  {t.myStatus !== "completed" && (
+                    <button
+                      onClick={() => markDone(t.id)}
+                      disabled={updatingId === t.id}
+                      className="p-0.5 rounded text-spotify-subtext hover:text-spotify-green transition-colors disabled:opacity-50 flex-shrink-0"
+                      title="Mark Done"
+                    >
+                      <Check size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Progress bar */}
+          <div className="mt-3">
+            <div className="h-1.5 rounded-full bg-spotify-border overflow-hidden">
+              <div
+                className="h-full rounded-full bg-spotify-green"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-xs text-spotify-subtext mt-1">{completed}/{total} completed</p>
+          </div>
+        </>
+      )}
+    </DashCard>
   );
 }
 

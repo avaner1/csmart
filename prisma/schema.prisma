@@ -23,12 +23,15 @@ model User {
   rhoCs            String?
   autoMatchedBook  Boolean     @default(false)
   coveringFor      String[]
+  hiddenChannels   String[]
   lastLoginAt      DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
-  savedItems       SavedItem[]
-  adminItems       AdminItem[]
-  handoffNotes     HandoffNote[]
+  savedItems           SavedItem[]
+  adminItems           AdminItem[]
+  handoffNotes         HandoffNote[]
+  createdTrainings     Training[]
+  trainingCompletions  TrainingCompletion[]
 }
 
 model SavedItem {
@@ -139,4 +142,47 @@ model HandoffNote {
   @@index([rosterId])
   @@index([cpName])
   @@index([authorId])
+}
+
+model Training {
+  id          String               @id @default(cuid())
+  title       String
+  description String               @default("")
+  sourceUrl   String
+  dueDate     DateTime
+  assignedTo  String               @default("all")
+  category    String               @default("product-training")
+  isRequired  Boolean              @default(true)
+  createdById String
+  createdBy   User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  completions TrainingCompletion[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([dueDate])
+  @@index([assignedTo])
+}
+
+model TrainingCompletion {
+  id          String    @id @default(cuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  status      String    @default("not-started")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([trainingId, userId])
+  @@index([userId])
+}
+
+model QuickLink {
+  id          String   @id @default(cuid())
+  title       String
+  url         String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

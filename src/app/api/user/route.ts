@@ -1,19 +1,16 @@
-import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDbUser, syncVibeUser } from "@/lib/auth";
 
 export async function GET() {
-  const clerkUser = await currentUser();
-  if (!clerkUser) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
-  });
+  let user = await getDbUser();
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    user = await syncVibeUser();
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   return NextResponse.json({
@@ -32,4 +29,22 @@ export async function GET() {
       autoMatchedBook: user.autoMatchedBook,
     },
   });
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = await getDbUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { name } = await request.json();
+
+  if (name?.trim()) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { name: name.trim() },
+    });
+  }
+
+  return NextResponse.json({ success: true });
 }
